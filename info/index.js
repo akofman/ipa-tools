@@ -11,7 +11,7 @@ const filterPlistFileName = (entry) => {
   }
 };
 
-const info = (callback) => {
+const ipaInfo = (callback) => {
   glob('**/*.ipa', { cwd: __dirname }, (error, files) => {
     if(files.length > 0) {
       info.path = path.join(__dirname, files[0]);
@@ -31,4 +31,4 @@ const info = (callback) => {
   });
 };
 
-module.exports = info;
+module.exports = ipaInfo;
