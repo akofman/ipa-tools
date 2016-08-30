@@ -1,0 +1,14 @@
+{
+  "name": "ipa-info",
+  "version": "1.0.0",
+  "description": "Extract info from an .ipa",
+  "main": "index.js",
+  "author": "Alexis Kofman",
+  "license": "ISC",
+  "dependencies": {
+    "extract-zip": "1.5.0",
+    "glob": "7.0.6",
+    "simple-plist": "0.1.4",
+    "tmp": "0.0.28"
+  }
+}
