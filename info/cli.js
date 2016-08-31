@@ -8,7 +8,11 @@ const argv = require('minimist')(process.argv.slice(2));
 const chalk = require('chalk');
 
 ipaInfo((err, info) => {
-  if(argv.short){
+  if (err) {
+    console.log(chalk.red(err.message));
+    process.exit();
+  }
+  if (argv.short) {
     console.log(`
       BUNDLE NAME: ${chalk.green(info.plist.CFBundleName)}
       BUILD VERSION: ${chalk.green(info.plist.CFBundleShortVersionString)}

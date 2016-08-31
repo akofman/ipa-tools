@@ -12,14 +12,12 @@ const filterPlistFileName = (entry) => {
 };
 
 const ipaInfo = (callback) => {
-  glob('**/*.ipa', { cwd: __dirname }, (error, files) => {
+  glob('**/*.ipa', { cwd: process.cwd() }, (error, files) => {
     if(files.length > 0) {
-      info.path = path.join(__dirname, files[0]);
-
-      tmp.dir(function _tempDirCreated(err, dirPath, cleanupCallback) {
+      info.path = path.join(process.cwd(), files[0]);
+      tmp.dir({ unsafeCleanup: true }, (err, dirPath, cleanupCallback) => {
         if (err) callback(err);
-
-        extractZip(files[0], {dir: dirPath, onEntry: filterPlistFileName}, (err) => {
+        extractZip(info.path, {dir: dirPath, onEntry: filterPlistFileName}, (err) => {
           info.plist = plist.readFileSync(path.join(dirPath, plistFileName));
           callback(err, info);
         });
