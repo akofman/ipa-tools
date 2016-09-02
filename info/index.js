@@ -8,80 +8,73 @@ const clone = require('clone');
 const fs = require('fs');
 const archiver = require('archiver');
 
-const filterPlistFileName = (entry, callback) => {
-  if(/\.plist*/.test(entry.fileName)){
-    callback(entry.fileName);
-  }
+const extractIpa = (options) => {
+  let result = {};
+  const filterPlistFileName = (entry) => {
+    if(/\.plist*/.test(entry.fileName)){
+      result.plistFileName = entry.fileName;
+    }
+  };
+  return new Promise((resolve, reject) => {
+    glob('**/*.ipa', { cwd: process.cwd() }, (error, files) => {
+      if (error) reject(error);
+      if(files.length > 0) {
+        result.path = path.join(process.cwd(), files[0]);
+        result.ipaName = files[0];
+        tmp.dir({ unsafeCleanup: true }, (err, dirPath, cleanupCallback) => {
+          if (err) reject(err);
+          result.extractDirPath = dirPath;
+          extractZip(result.path, {dir: dirPath, onEntry: filterPlistFileName}, (err) => {
+            if (!result.plistFileName){
+              reject(new Error('No plist found'));
+            } else {
+              resolve(result);
+            }
+          });
+        });
+      }
+      else {
+        reject(new Error('ipa not found'));
+      }
+    });
+  });
 };
 
 const read = (callback) => {
-  glob('**/*.ipa', { cwd: process.cwd() }, (error, files) => {
-    let plistFileName, info = {};
-    const initPlistFileName = (entry) => {
-      filterPlistFileName(entry, (fileName) => {
-        plistFileName = fileName;
-      });
+  return extractIpa().then((result) => {
+    return {
+      ipaPath: result.path,
+      plist: plist.readFileSync(path.join(result.extractDirPath, result.plistFileName))
     };
-
-    if(files.length > 0) {
-      info.path = path.join(process.cwd(), files[0]);
-      tmp.dir({ unsafeCleanup: true }, (err, dirPath, cleanupCallback) => {
-        if (err) callback(err);
-        extractZip(info.path, {dir: dirPath, onEntry: initPlistFileName}, (err) => {
-          if (!plistFileName) callback(new Error('No plist found'));
-          info.plist = plist.readFileSync(path.join(dirPath, plistFileName));
-          callback(err, info);
-        });
-      });
-    }
-    else {
-      callback(new Error('ipa not found'));
-    }
   });
 };
 
 const update = (options, callback) => {
-  glob('**/*.ipa', { cwd: process.cwd() }, (error, files) => {
-    let plistFileName, zipPath;
-    const initPlistFileName = (entry) => {
-      filterPlistFileName(entry, (fileName) => {
-        plistFileName = fileName;
-      });
-    };
+  return extractIpa().then((result) => {
+    const plistPath = path.join(result.extractDirPath, result.plistFileName);
+    const plistObj = plist.readFileSync(plistPath);
+    const archive = archiver.create('zip', {});
+    let updatedPlistObj, output, newProps = {};
 
-    if(files.length > 0) {
-      tmp.dir({ unsafeCleanup: true }, (err, extractDirPath, cleanupCallback) => {
-        if (err) callback(err);
-        extractZip(path.join(process.cwd(), files[0]), {dir: extractDirPath, onEntry: initPlistFileName}, (err) => {
-          const plistPath = path.join(extractDirPath, plistFileName);
-          const plistObj = plist.readFileSync(plistPath);
-          const archive = archiver.create('zip', {});
-          let updatedPlistObj, output, newProps = {};
-
-          // Keep only plist props
-          for ( let prop in plistObj ) {
-            if (options[prop]) {
-              newProps[prop] = options[prop];
-            }
-          }
-
-          updatedPlistObj = merge(plistObj, newProps);
-          plist.writeBinaryFileSync(plistPath, updatedPlistObj);
-
-          tmp.dir({ keep: true }, (err, zipDirPath, cleanupCallback) => {
-            zipPath = path.join(zipDirPath, files[0]);
-            output = fs.createWriteStream(zipPath);
-
-            archive.pipe(output);
-            archive.directory(path.join(extractDirPath, 'Payload'), 'Payload').finalize();
-            callback(err, zipPath);
-          });
-        });
-      });
+    // Keep only plist props
+    for ( let prop in plistObj ) {
+      if (options[prop]) {
+        newProps[prop] = options[prop];
+      }
     }
-    else {
-      callback(new Error('ipa not found'));
-    }
+
+    updatedPlistObj = merge(plistObj, newProps);
+    plist.writeBinaryFileSync(plistPath, updatedPlistObj);
+
+    tmp.dir({ keep: true }, (err, zipDirPath, cleanupCallback) => {
+      if (err) throw err;
+      zipPath = path.join(zipDirPath, result.ipaName);
+      output = fs.createWriteStream(zipPath);
+
+      archive.pipe(output);
+      archive.directory(path.join(result.extractDirPath, 'Payload'), 'Payload').finalize();
+      return zipPath;
+    });
   });
 }
 
