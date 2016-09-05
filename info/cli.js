@@ -9,7 +9,7 @@ const chalk = require('chalk');
 const stripIndents = require('common-tags/lib/stripIndents');
 
 if (argv._.length === 0) {
-  ipaInfo.read().then((info) => {
+  ipaInfo.read(argv).then((info) => {
     if (argv.short) {
       console.log(stripIndents `Bundle name: ${chalk.green(info.plist.CFBundleName)}
       Build version: ${chalk.green(info.plist.CFBundleShortVersionString)}

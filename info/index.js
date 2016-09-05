@@ -16,7 +16,8 @@ const extractIpa = (options) => {
     }
   };
   return new Promise((resolve, reject) => {
-    glob('**/*.ipa', { cwd: process.cwd() }, (error, files) => {
+    let ipaPattern = options && options.input || '**/*.ipa';
+    glob(ipaPattern, { cwd: process.cwd() }, (error, files) => {
       if (error) reject(error);
       if(files.length > 0) {
         result.path = path.join(process.cwd(), files[0]);
@@ -40,8 +41,8 @@ const extractIpa = (options) => {
   });
 };
 
-const read = (callback) => {
-  return extractIpa().then((result) => {
+const read = (options) => {
+  return extractIpa(options).then((result) => {
     return {
       ipaPath: result.path,
       plist: plist.readFileSync(path.join(result.extractDirPath, result.plistFileName))
@@ -49,12 +50,12 @@ const read = (callback) => {
   });
 };
 
-const update = (options, callback) => {
-  return extractIpa().then((result) => {
+const update = (options) => {
+  return extractIpa(options).then((result) => {
     const plistPath = path.join(result.extractDirPath, result.plistFileName);
     const plistObj = plist.readFileSync(plistPath);
     const archive = archiver.create('zip', {});
-    let updatedPlistObj, output, newProps = {};
+    let zipPath, updatedPlistObj, output, newProps = {};
 
     // Keep only plist props
     for ( let prop in plistObj ) {
@@ -66,14 +67,15 @@ const update = (options, callback) => {
     updatedPlistObj = merge(plistObj, newProps);
     plist.writeBinaryFileSync(plistPath, updatedPlistObj);
 
-    tmp.dir({ keep: true }, (err, zipDirPath, cleanupCallback) => {
-      if (err) throw err;
-      zipPath = path.join(zipDirPath, result.ipaName);
-      output = fs.createWriteStream(zipPath);
-
-      archive.pipe(output);
-      archive.directory(path.join(result.extractDirPath, 'Payload'), 'Payload').finalize();
-      return zipPath;
+    return new Promise((resolve, reject) => {
+      tmp.dir({ keep: true }, (err, zipDirPath) => {
+        if (err) reject(err);
+        zipPath = options && options.output && path.join( options.output, result.ipaName) || path.join(process.cwd(), result.ipaName);
+        output = fs.createWriteStream(zipPath);
+        archive.pipe(output);
+        archive.directory(path.join(result.extractDirPath, 'Payload'), 'Payload').finalize();
+        resolve(zipPath);
+      });
     });
   });
 }
