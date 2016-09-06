@@ -1,0 +1,7 @@
+{
+  "extends": "standard",
+  "rules": {
+    "func-names": 0,
+    "max-len": 0
+  }
+}
