@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 // USAGE :
-// $ ipaInfo
-// $ ipaInfo --short
+// ipa-info
+// ipa-info --short
+// ipa-info --input *.ipa
+// ipa-info update --CFBundleVersion 2 --output .
 const ipaInfo = require('./')
 const argv = require('minimist')(process.argv.slice(2))
 const chalk = require('chalk')
@@ -26,8 +28,8 @@ if (argv._.length === 0) {
 }
 
 if (argv._.length === 1 && argv._[0] === 'update') {
-  ipaInfo.update(argv).then((result) => {
-    console.log(`updated IPA: ${chalk.green(result)}`)
+  ipaInfo.update(argv).then((ipaPath) => {
+    console.log(`updated IPA: ${chalk.green(ipaPath)}`)
   }).catch((err) => {
     console.log(chalk.red(err.message))
     process.exit()
